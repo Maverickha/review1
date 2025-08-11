@@ -50,7 +50,7 @@ def create_app() -> Flask:
 
     @flask_app.get("/config.js")
     def public_config() -> Response:
-        js = f"window.__APP_CONFIG__={{GA_ID:'{settings.ga_id}'}};"
+        js = f"window.APP_CONFIG={{GA_ID:'{settings.ga_id}'}};"
         return Response(js, mimetype="application/javascript")
 
     @flask_app.get("/")
