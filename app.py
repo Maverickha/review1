@@ -56,6 +56,10 @@ def create_app() -> Flask:
     @flask_app.get("/")
     def index() -> Any:
         return send_from_directory(flask_app.static_folder, "index.html")
+    
+    @flask_app.get("/static/<path:filename>")
+    def static_files(filename: str) -> Any:
+        return send_from_directory(flask_app.static_folder, filename)
 
     @flask_app.get("/api/health")
     def health() -> Any:
@@ -388,6 +392,14 @@ def create_app() -> Flask:
         except Exception as exc:  # noqa: BLE001
             return jsonify({"error": str(exc)}), 500
 
+    # Catch-all route for SPA (모든 경로를 index.html로 리다이렉트)
+    @flask_app.route('/<path:path>')
+    def catch_all(path: str) -> Any:
+        # API 경로나 정적 파일이 아닌 경우 index.html 제공
+        if path.startswith('api/') or path.startswith('static/') or path == 'config.js':
+            return flask_app.response_class(status=404)
+        return send_from_directory(flask_app.static_folder, "index.html")
+    
     return flask_app
 
 

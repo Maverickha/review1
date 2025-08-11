@@ -6,9 +6,7 @@
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/index.py" },
     { "src": "/config.js", "dest": "/api/index.py" },
-    { "src": "/static/(.*)", "dest": "/static/$1" },
-    { "src": "/", "dest": "/static/index.html" },
-    { "src": "/(.*)", "dest": "/static/index.html" }
+    { "src": "/(.*)", "dest": "/api/index.py" }
   ]
 }
 
