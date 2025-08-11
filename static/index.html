@@ -1,1 +1,888 @@
-밋
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>App Review Prioritizer</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin />
+    <link rel="stylesheet" as="style" onload="this.rel='stylesheet'" href="https://fonts.googleapis.com/css2?display=swap&family=Inter:wght@400;500;700;900&family=Noto+Sans:wght@400;500;700;900" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- App public config & Analytics -->
+    <script src="/config.js"></script>
+    <script src="/static/js/analytics.js"></script>
+    <style>
+      /* 유리(Glass) 패널 효과 */
+      .glass { background: rgba(255,255,255,0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+      .glass-border { border-color: rgba(212,226,215,0.7) !important; }
+      /* ========== 다크모드(명시 팔레트) ========== */
+      body.dark-mode { background-color: #0f1115; color: #e4e6eb; }
+      /* 카드/패널/박스 + 우리 컴포넌트 매핑 */
+      body.dark-mode .card,
+      body.dark-mode .panel,
+      body.dark-mode .box,
+      body.dark-mode .glass,
+      body.dark-mode .app-card,
+      body.dark-mode #selected-apps > div {
+        background: linear-gradient(145deg, #1a1c21, #1e2025) !important;
+        border: 1px solid #2a2d34 !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important;
+      }
+      /* 입력 */
+      body.dark-mode input,
+      body.dark-mode textarea,
+      body.dark-mode select { background-color: #1b1d22 !important; border: 1px solid #2d2f36 !important; color: #f0f0f0 !important; }
+      body.dark-mode input::placeholder { color: #7a7d85 !important; }
+      /* 버튼 */
+      body.dark-mode button { background-color: #24262b !important; color: #f0f0f0 !important; border: 1px solid #3a3d44 !important; }
+      body.dark-mode button:hover { background-color: #2d2f36 !important; }
+      /* 테이블 */
+      body.dark-mode table { background-color: #16181d !important; border-color: #2d2f36 !important; }
+      body.dark-mode th { background-color: #1f2126 !important; color: #bfc2c7 !important; }
+      body.dark-mode td { border-top: 1px solid #2d2f36 !important; color: #e4e6eb !important; }
+      /* 강조(선택된 상태) */
+      body.dark-mode .active,
+      body.dark-mode [aria-selected="true"],
+      body.dark-mode [data-active="true"] { background-color: #2b6cb0 !important; color: #ffffff !important; border-color: #2b6cb0 !important; }
+      /* 아이콘/이미지는 라이트/다크 동일 색 유지 */
+      body.dark-mode img, body.dark-mode video { filter: none !important; }
+    </style>
+  </head>
+  <body class="min-h-screen bg-[#f9fbf9]" style='font-family: Inter, "Noto Sans", sans-serif;'>
+    <div id="app-root" class="flex min-h-screen flex-col">
+      <header class="flex items-center justify-between border-b border-[#eaf1eb] px-10 py-3">
+        <div class="flex items-center gap-3 text-[#101812]">
+          <div class="size-5 text-[#22672e]">
+            <svg viewBox="0 0 48 48" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M36.7273 44C33.9891 44 31.6043 39.8386 30.3636 33.69C29.123 39.8386 26.7382 44 24 44C21.2618 44 18.877 39.8386 17.6364 33.69C16.3957 39.8386 14.0109 44 11.2727 44C7.25611 44 4 35.0457 4 24C4 12.9543 7.25611 4 11.2727 4C14.0109 4 16.3957 8.16144 17.6364 14.31C18.877 8.16144 21.2618 4 24 4C26.7382 4 29.123 8.16144 30.3636 14.31C31.6043 8.16144 33.9891 4 36.7273 4C40.7439 4 44 12.9543 44 24C44 35.0457 40.7439 44 36.7273 44Z"/></svg>
+          </div>
+          <h2 class="text-lg font-bold tracking-[-0.015em]">앱 리뷰 우선순위</h2>
+        </div>
+        <div class="flex flex-1 justify-end">
+          <button id="btn-theme" class="flex items-center gap-2 rounded-lg border border-[#d4e2d7] px-3 py-1.5 text-sm text-[#101812]">
+            <span id="theme-icon" aria-hidden="true">🌙</span>
+            <span>다크모드</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="flex flex-1 justify-center px-6 py-5 gap-6">
+        <!-- Left: Select Apps -->
+        <aside class="flex w-[630px] flex-col">
+          <div class="flex items-center justify-between px-2 pt-5 pb-3">
+            <h2 class="text-[#101812] text-[22px] font-bold leading-tight tracking-[-0.015em]">앱 검색</h2>
+          </div>
+          <!-- OS Toggle -->
+          <div class="flex gap-3 px-2 pb-2">
+            <label class="cursor-pointer text-sm">
+              <input type="radio" name="os" value="android" class="sr-only" checked />
+              <span class="inline-flex items-center gap-2 rounded-lg border border-[#d4e2d7] px-3 py-2 text-[#101812] data-[active=true]:border-2 data-[active=true]:border-[#22672e]" data-os="android">Android</span>
+            </label>
+            <label class="cursor-pointer text-sm">
+              <input type="radio" name="os" value="ios" class="sr-only" />
+              <span class="inline-flex items-center gap-2 rounded-lg border border-[#d4e2d7] px-3 py-2 text-[#101812]" data-os="ios">iOS</span>
+            </label>
+          </div>
+          <!-- Search -->
+          <div class="px-2 py-2 mb-4">
+        <div class="flex h-12 items-center rounded-lg bg-[#eaf1eb] text-[#101812] glass glass-border border panel">
+              <div class="pl-4 text-[#5c8a63]">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"></path></svg>
+              </div>
+              <input id="q" maxlength="100" placeholder="앱을 검색하거나 스토어 URL을 붙여넣기" class="form-input h-full w-full border-none bg-[#eaf1eb] px-3 text-base text-[#101812] placeholder:text-[#5c8a63] focus:ring-0" />
+              <button id="btn-search" class="hidden">검색</button>
+            </div>
+          </div>
+          <!-- Results -->
+          <div id="search-results" class="px-2 pb-4 grid grid-cols-2 gap-3 overflow-y-auto border rounded-lg glass glass-border p-2 hidden panel" style="max-height: 380px;"></div>
+
+          <div class="flex items-center justify-between px-2 pb-2 mt-8">
+            <h2 class="text-[#101812] text-[22px] font-bold leading-tight tracking-[-0.015em]">선택한 앱 (최대 10개)</h2>
+            <button id="btn-reset-selected" class="text-sm text-[#22672e] underline">초기화</button>
+          </div>
+          <div id="selected-apps" class="px-2 grid grid-cols-2 gap-2" style="grid-auto-rows:minmax(48px,auto);"></div>
+        </aside>
+
+        <!-- Right: Criteria and Results -->
+        <section id="component-result" class="flex max-w/[980px] max-w-[980px] flex-1 flex-col">
+          <div class="flex items-center justify-between gap-3 px-2 pt-4 pb-2">
+            <h3 class="text-[#101812] text-[22px] font-bold tracking-[-0.015em]">조건 설정</h3>
+            <button id="btn-fetch" disabled class="h-10 rounded-lg bg-[#22672e] px-4 text-sm font-bold text-[#f9fbf9] disabled:opacity-60">리뷰 불러오기</button>
+          </div>
+
+          <div class="mx-2 mb-8 rounded-lg border border-[#eaf1eb] bg-white glass glass-border panel">
+          <!-- Count -->
+          <div class="flex flex-wrap items-center gap-3 p-4">
+            <div class="w-16 shrink-0 text-sm font-semibold text-[#101812]">개수</div>
+            <label class="cursor-pointer text-sm"><input type="radio" name="count" value="100" class="sr-only" /><span data-pill="count" data-value="100" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">100</span></label>
+            <label class="cursor-pointer text-sm"><input type="radio" name="count" value="200" class="sr-only" /><span data-pill="count" data-value="200" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">200</span></label>
+            <label class="cursor-pointer text-sm"><input type="radio" name="count" value="300" class="sr-only" checked /><span data-pill="count" data-value="300" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">300</span></label>
+            <label class="cursor-pointer text-sm"><input type="radio" name="count" value="400" class="sr-only" /><span data-pill="count" data-value="400" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">400</span></label>
+            <label class="cursor-pointer text-sm"><input type="radio" name="count" value="500" class="sr-only" /><span data-pill="count" data-value="500" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">500</span></label>
+            <label class="cursor-pointer text-sm ml-2 inline-flex items-center gap-2"><input type="radio" name="countMode" value="custom" id="count-custom-radio" class="accent-[#22672e]" /><span>직접입력</span></label>
+            <input id="count-custom" type="text" inputmode="numeric" pattern="\d+" placeholder="예: 750" class="h-11 w-36 rounded-lg border border-[#d4e2d7] px-3" disabled />
+          </div>
+
+          <!-- Period -->
+          <div class="flex flex-wrap items-center gap-3 p-4">
+            <div class="w-16 shrink-0 text-sm font-semibold text-[#101812]">기간</div>
+            <label class="cursor-pointer text-sm"><input type="radio" name="period" value="30" class="sr-only" /><span data-pill="period" data-value="30" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">1개월</span></label>
+            <label class="cursor-pointer text-sm"><input type="radio" name="period" value="90" class="sr-only" checked /><span data-pill="period" data-value="90" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">3개월</span></label>
+            <label class="cursor-pointer text-sm"><input type="radio" name="period" value="180" class="sr-only" /><span data-pill="period" data-value="180" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">6개월</span></label>
+            <label class="cursor-pointer text-sm"><input type="radio" name="period" value="365" class="sr-only" /><span data-pill="period" data-value="365" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">1년</span></label>
+            <label class="cursor-pointer text-sm"><input type="radio" name="period" value="1095" class="sr-only" /><span data-pill="period" data-value="1095" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">3년</span></label>
+            <label class="cursor-pointer text-sm ml-2 inline-flex items-center gap-2"><input type="radio" name="periodMode" value="custom" id="period-custom-radio" class="accent-[#22672e]" /><span>직접입력</span></label>
+            <input id="period-custom" type="text" inputmode="numeric" pattern="\d{8}" placeholder="yyyymmdd" class="h-11 w-40 rounded-lg border border-[#d4e2d7] px-3" disabled />
+          </div>
+
+          <!-- Rating -->
+          <div class="p-4 flex items-center gap-3 flex-wrap">
+            <div class="w-16 shrink-0 text-sm font-semibold text-[#101812]">평점</div>
+            <div class="flex gap-2">
+              <button class="star rounded-lg border border-[#d4e2d7] px-3 py-2 bg-[#22672e] text-white border-[#22672e]" data-val="1" data-active>★</button>
+              <button class="star rounded-lg border border-[#d4e2d7] px-3 py-2" data-val="2">★★</button>
+              <button class="star rounded-lg border border-[#d4e2d7] px-3 py-2" data-val="3">★★★</button>
+              <button class="star rounded-lg border border-[#d4e2d7] px-3 py-2" data-val="4">★★★★</button>
+              <button class="star rounded-lg border border-[#d4e2d7] px-3 py-2" data-val="5">★★★★★</button>
+            </div>
+          </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex items-center justify-between px-2 gap-4">
+            <div id="total-info" class="font-bold text-[22px] text-[#101812] hidden"></div>
+            <div id="result-actions" class="hidden items-center justify-end gap-4">
+              <button id="btn-export" class="h-10 rounded-lg bg-[#22672e] px-4 text-sm font-bold text-white disabled:opacity-60" disabled>CSV 다운로드</button>
+              <button id="btn-copy" class="h-10 rounded-lg bg-[#22672e] px-4 text-sm font-bold text-white disabled:opacity-60" disabled>표 복사</button>
+            </div>
+          </div>
+          <div id="severity-note" class="px-2 text-sm text-[#5c8a63] mt-1">심각도 점수: 낮은 평점 가중치↑, 좋아요 로그 가중 (예: 1점×(1+log2(1+좋아요)))</div>
+
+          <!-- Table -->
+          <div class="px-2 pb-6">
+            <div class="overflow-auto rounded-lg border border-[#eaf1eb] bg-white glass glass-border h-[52vh]">
+              <table id="tbl" class="min-w-full text-sm border-collapse">
+                <thead class="bg-[#f3f7f4] text-[#5c8a63]">
+                  <tr>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">OS</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">서비스명</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">순위</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">내용</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">심각도 점수</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">백분위</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">평점</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">좋아요</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">닉네임</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">날짜</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-[#e5e7eb]"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <div id="toast" class="pointer-events-none fixed bottom-4 left-1/2 -translate-x-1/2 rounded-lg border border-[#eaf1eb] bg-white px-4 py-2 text-sm text-[#101812] opacity-0 shadow transition-opacity"></div>
+    </div>
+
+    <script>
+      const $ = (s)=>document.querySelector(s);
+      const $$ = (s)=>Array.from(document.querySelectorAll(s));
+      const state = { selectedOS:'android', selectedApps:[], disabledAppIds:new Set(), reviewCountPerApp:300, payload:null };
+
+      // OS 토글 스타일 반영
+      function syncOsPills(){
+        $$("[data-os]").forEach(x=>x.dataset.active = (x.dataset.os===state.selectedOS));
+      }
+
+      function renderSearchResults(items){
+        const root = $('#search-results');
+        root.classList.toggle('hidden', !items || items.length===0);
+        root.innerHTML = '';
+        items.forEach(item=>{
+          const score = (item.score ?? null) !== null ? Number(item.score).toFixed(2) : '-';
+          const el = document.createElement('div');
+          el.className = 'app-card flex items-center gap-3 rounded-lg border border-[#eaf1eb] bg-white p-3';
+          el.innerHTML = `
+            <img src="${item.icon||''}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'42\\' height=\\'42\\'></svg>'" class="h-10 w-10 rounded-lg" alt="icon" />
+            <div class="min-w-0">
+              <div class="truncate text-sm font-semibold text-[#101812] title">${item.title||''}</div>
+              <div class="truncate text-xs text-[#5c8a63]">${item.developer||''}</div>
+              <div class="text-xs text-[#5c8a63]">★ ${score}</div>
+            </div>
+            <div class="ml-auto">
+              <button class="select-btn h-8 w-16 rounded-lg bg-[#eaf1eb] text-xs font-normal text-[#121212] disabled:opacity-60" data-appid="${item.appId}" ${state.disabledAppIds.has(String(item.appId))?'disabled':''}>선택</button>
+            </div>`;
+          root.appendChild(el);
+        });
+      }
+
+      async function doSearch(){
+        const q = $('#q').value.trim();
+        if(!q){ $('#search-results').innerHTML=''; $('#search-results').classList.add('hidden'); return; }
+        $('#search-results').classList.remove('hidden');
+        $('#search-results').innerHTML = '<div class="text-sm text-[#5c8a63]">검색 중…</div>';
+        window.logEvent('search','submit',{ query:q, os:state.selectedOS });
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&os=${encodeURIComponent(state.selectedOS)}`);
+        const data = await res.json();
+        renderSearchResults(data.items||[]);
+        if (isAppUrl(q) && Array.isArray(data.items) && data.items.length === 1) {
+          const item = data.items[0];
+          const appIdStr = String(item.appId);
+          if (!state.disabledAppIds.has(appIdStr) && state.selectedApps.length < 10) {
+            state.selectedApps.push({ appId: appIdStr, appName: item.title||'', os: item.os||state.selectedOS, icon: item.icon||'' });
+            state.disabledAppIds.add(appIdStr);
+            renderSelectedApps();
+            $('#btn-fetch').disabled = state.selectedApps.length===0;
+            $('#result-actions').classList.add('hidden');
+            window.logEvent('search','auto_select_from_url',{ app_id: appIdStr });
+          }
+        }
+      }
+
+      async function fetchReviews(){
+        if(state.selectedApps.length===0) return;
+        const countSel = document.querySelector('input[name="count"]:checked');
+        let countPerApp = countSel ? parseInt(countSel.value,10) : 500;
+        if($('#count-custom-radio')?.checked){ const v = parseInt($('#count-custom').value||'0',10); if(!Number.isNaN(v) && v>0) countPerApp=v; }
+        const periodSel = document.querySelector('input[name="period"]:checked');
+        let days = periodSel ? parseInt(periodSel.value,10) : 365;
+        let fromDate = '';
+        if($('#period-custom-radio')?.checked){ const v = ($('#period-custom').value||'').trim(); if(/^\d{8}$/.test(v)) fromDate=v; }
+        const ratingMaxBtn = document.querySelector('.star[data-active]');
+        const ratingMax = ratingMaxBtn ? parseInt(ratingMaxBtn.getAttribute('data-val'),10) : 3;
+        window.logEvent('fetch','request_multi',{ apps:state.selectedApps.length, countPerApp });
+        $('#tbl tbody').innerHTML = '<tr><td colspan="10" class="px-3 py-2 text-sm text-[#5c8a63]">불러오는 중…</td></tr>';
+        const body = { selectedApps: state.selectedApps, countPerApp, days, ratingMax, fromDate };
+        const res = await fetch('/api/reviews/multi',{ method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json();
+        state.payload = data;
+        renderTable(data.rows||[]);
+        const hasRows = (data?.meta?.total ?? 0) > 0;
+        $('#btn-export').disabled = !hasRows; $('#btn-copy').disabled = !hasRows; $('#result-actions').classList.toggle('hidden', !hasRows);
+        const ti = document.getElementById('total-info');
+        if (ti) { ti.textContent = hasRows ? `총 ${data.meta.total}개의 리뷰를 불러왔습니다.` : ''; ti.classList.toggle('hidden', !hasRows); }
+      }
+
+      function renderTable(rows){
+        const tbody = $('#tbl tbody');
+        if(!rows.length){ tbody.innerHTML = '<tr><td colspan="10" class="px-3 py-2 text-sm text-[#5c8a63]">결과가 없습니다</td></tr>'; return; }
+        tbody.innerHTML = rows.map(r=>`
+          <tr class="bg-white">
+            <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['OS']??''}</td>
+            <td class="px-3 py-2 border border-[#e5e7eb]" title="${escapeHtml(r['서비스명'])}"><span class="block max-w-[8ch] truncate" data-full="${escapeHtml(r['서비스명'])}">${escapeHtml(r['서비스명'])}</span></td>
+            <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['순위']??''}</td>
+            <td class="px-3 py-2 border border-[#e5e7eb]" title="${escapeHtml(r['내용']??'')}"><span class="block max-w-[50ch] truncate" data-full-content="${escapeHtml(r['내용']??'')}">${escapeHtml(r['내용']??'')}</span></td>
+            <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['심각도 점수']??''}</td>
+            <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['백분위']??''}</td>
+            <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['평점']}</td>
+            <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['좋아요']}</td>
+            <td class="px-3 py-2 border border-[#e5e7eb]" title="${escapeHtml(r['닉네임']??'')}"><span class="block max-w-[5ch] truncate" data-full-nick="${escapeHtml(r['닉네임']??'')}">${escapeHtml(r['닉네임']??'')}</span></td>
+            <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['날짜']}</td>
+          </tr>`).join('');
+      }
+
+      function escapeHtml(str){ return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;'); }
+
+      async function copyTable(){
+        const rows = $$('#tbl tr');
+        const data = rows.map(tr=>Array.from(tr.children).map(td=>{
+          // 서비스명/내용/닉네임은 data-full 기반으로 원문 복사
+          const full = td.querySelector('[data-full]')?.getAttribute('data-full')
+                   || td.querySelector('[data-full-content]')?.getAttribute('data-full-content')
+                   || td.querySelector('[data-full-nick]')?.getAttribute('data-full-nick');
+          return full ?? td.textContent;
+        }));
+        const tsv = data.map(r=>r.join('\t')).join('\n');
+        try{ await navigator.clipboard.writeText(tsv); }catch(e){ const ta=document.createElement('textarea'); ta.value=tsv; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+        const toast=$('#toast'); toast.textContent='복사 완료!'; toast.style.opacity='1'; setTimeout(()=>toast.style.opacity='0',2000);
+        window.logEvent('table','copy',{ rows:data.length });
+      }
+
+      function exportCsv(){
+        const rows = state?.payload?.rows || [];
+        if(!rows.length){ alert('내보낼 데이터가 없습니다.'); return; }
+        const headers = ['OS','서비스명','순위','내용','심각도 점수','백분위','평점','좋아요','닉네임','날짜'];
+        function esc(v){
+          const s = String(v ?? '');
+          if (s.includes('"') || s.includes(',') || s.includes('\n')) return '"'+s.replaceAll('"','""')+'"';
+          return s;
+        }
+        const lines = [headers.join(',')].concat(rows.map(r=>headers.map(h=>esc(r[h])).join(',')));
+        const csv = '\ufeff' + lines.join('\n'); // UTF-8 BOM
+        const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const dt = new Date();
+        const ts = `${dt.getFullYear()}${String(dt.getMonth()+1).padStart(2,'0')}${String(dt.getDate()).padStart(2,'0')}_${String(dt.getHours()).padStart(2,'0')}${String(dt.getMinutes()).padStart(2,'0')}${String(dt.getSeconds()).padStart(2,'0')}`;
+        a.href = url; a.download = `reviews_${ts}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+        window.logEvent('table','export_csv',{ rows: rows.length });
+      }
+
+      function isAppUrl(u){ const s=String(u||'').toLowerCase(); return s.includes('apps.apple.com')||s.includes('play.google.com'); }
+
+      // 라디오 선택 시 pill 스타일 동기화
+      function markPills(group, value){
+        document.querySelectorAll(`[data-pill='${group}']`).forEach(el=>{
+          el.dataset.active = (String(el.dataset.value) === String(value));
+        });
+      }
+      document.addEventListener('change', (e)=>{
+        const t = e.target;
+        if (!(t instanceof HTMLInputElement)) return;
+        if (t.name === 'count') markPills('count', t.value);
+        if (t.name === 'period') markPills('period', t.value);
+        // 직접입력 정책: count/period 버튼 클릭 시 해당 custom 라디오 해제
+        if (t.name === 'count') { const cm = document.getElementById('count-custom-radio'); if (cm) cm.checked = false; }
+        if (t.name === 'period') { const pm = document.getElementById('period-custom-radio'); if (pm) pm.checked = false; }
+        // custom 라디오 선택 시 입력 활성화, 반대 그룹 pill 비활성화 유지
+        if (t.id === 'count-custom-radio') { const cc = document.getElementById('count-custom'); if (cc) cc.disabled = !t.checked; if (t.checked) cc.focus(); }
+        if (t.id === 'period-custom-radio') { const pc = document.getElementById('period-custom'); if (pc) pc.disabled = !t.checked; if (t.checked) pc.focus(); }
+      });
+
+      // pill 클릭으로 라디오 선택
+      document.addEventListener('click', (e)=>{
+        const pill = e.target.closest('[data-pill]');
+        if (!pill) return;
+        const group = pill.getAttribute('data-pill');
+        const val = pill.getAttribute('data-value');
+        const input = document.querySelector(`input[name="${group}"][value="${CSS.escape(val)}"]`);
+        if (input) { input.checked = true; markPills(group, val); }
+        // pill 클릭도 직접입력 라디오 해제
+        if (group === 'count') { const cm = document.getElementById('count-custom-radio'); if (cm) cm.checked = false; }
+        if (group === 'period') { const pm = document.getElementById('period-custom-radio'); if (pm) pm.checked = false; }
+      });
+
+      // 선택 스타일: pill은 활성 시 배경/글자색 변경
+      function styleActivePills(){
+        document.querySelectorAll('[data-pill]').forEach(el=>{
+          const active = el.dataset.active === 'true';
+          el.classList.toggle('bg-[#22672e]', active);
+          el.classList.toggle('text-white', active);
+          el.classList.toggle('border-[#22672e]', active);
+        });
+      }
+      // markPills 확장: 스타일 반영
+      const _origMarkPills = markPills;
+      markPills = function(group, value){
+        document.querySelectorAll(`[data-pill='${group}']`).forEach(el=>{
+          el.dataset.active = (String(el.dataset.value) === String(value));
+        });
+        styleActivePills();
+      }
+      // 초기 스타일 적용
+      styleActivePills();
+
+      // 별점 스타일 토글(선택 시 키 컬러)
+      document.querySelectorAll('.star').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          document.querySelectorAll('.star').forEach(b=>{
+            b.removeAttribute('data-active');
+            b.classList.remove('bg-[#22672e]','text-white','border-[#22672e]');
+          });
+          btn.setAttribute('data-active','');
+          btn.classList.add('bg-[#22672e]','text-white','border-[#22672e]');
+        });
+      });
+
+      // bindings
+      $('#btn-search').addEventListener('click', doSearch);
+      let typingTimer=null; $('#q').addEventListener('input',()=>{ clearTimeout(typingTimer); typingTimer=setTimeout(doSearch,250); }); $('#q').addEventListener('keydown',(e)=>{ if(e.key==='Enter') doSearch(); });
+      document.querySelectorAll('input[name="os"]').forEach(r=>{ r.addEventListener('change',()=>{ state.selectedOS=r.value; syncOsPills(); doSearch(); }); }); syncOsPills();
+      document.addEventListener('click',(e)=>{
+        const btn=e.target.closest('.select-btn');
+        if(!btn) return;
+        const appId=btn.getAttribute('data-appid');
+        const card=btn.closest('.app-card');
+        const title=card?.querySelector('.title')?.textContent||'';
+        const icon=card?.querySelector('img')?.src||'';
+        if(state.disabledAppIds.has(appId)||state.selectedApps.length>=10) return;
+        state.selectedApps.push({ appId, appName:title, os:state.selectedOS, icon });
+        state.disabledAppIds.add(appId);
+        // 버튼 비활성화를 더 명확하게
+        btn.disabled=true;
+        btn.classList.add('bg-[#e5e7eb]','text-[#9aa0a6]','border','#e5e7eb');
+        renderSelectedApps();
+        $('#btn-fetch').disabled = state.selectedApps.length===0;
+        $('#result-actions').classList.add('hidden');
+      });
+      $('#btn-fetch').addEventListener('click', fetchReviews);
+      $('#btn-export').addEventListener('click', exportCsv);
+      $('#btn-copy').addEventListener('click', copyTable);
+      $('#count-custom-radio')?.addEventListener('change',()=>{ const cc=$('#count-custom'); const on=$('#count-custom-radio').checked; cc.disabled=!on; if(on) cc.focus(); });
+      $('#period-custom-radio')?.addEventListener('change',()=>{ const pc=$('#period-custom'); const on=$('#period-custom-radio').checked; pc.disabled=!on; if(on) pc.focus(); });
+      $('#btn-reset-selected')?.addEventListener('click',()=>{ state.selectedApps=[]; state.disabledAppIds=new Set(); renderSelectedApps(); $$('#search-results .select-btn[disabled]').forEach(b=>{ b.disabled=false; b.classList.remove('bg-[#e5e7eb]','text-[#9aa0a6]','border','#e5e7eb'); b.classList.add('bg-[#eaf1eb]'); b.style.color='#121212'; b.style.fontWeight='400'; }); $('#btn-fetch').disabled=true; });
+
+      function renderSelectedApps(){ const root=$('#selected-apps'); root.innerHTML=''; state.selectedApps.forEach(({appId,appName,icon})=>{ const el=document.createElement('div'); el.className='flex items-center justify-between rounded-lg border border-[#eaf1eb] bg-white px-3 py-3'; el.innerHTML = `<div class=\"flex items-center gap-2 min-w-0\"><img src=\"${icon}\" class=\"h-7 w-7 rounded\"/><p class=\"truncate text-sm\">${escapeHtml(appName)}</p></div><button data-remove=\"${appId}\" class=\"text-[#101812]\">✕</button>`; root.appendChild(el); }); }
+      // 초기 pill 표시 동기화(기본: 개수 300, 기간 3개월)
+      markPills('count', document.querySelector('input[name="count"]:checked')?.value || '300');
+      markPills('period', document.querySelector('input[name="period"]:checked')?.value || '90');
+
+      // 다크모드 토글
+      (function(){
+        const root = document.documentElement;
+        const key = 'theme';
+        function apply(mode){
+          const isDark = mode === 'dark';
+          root.classList.toggle('dark', isDark);          // 이전 호환
+          document.body.classList.toggle('dark-mode', isDark); // 신규 팔레트 적용
+          $('#theme-icon').textContent = isDark ? '☀️' : '🌙';
+        }
+        const saved = localStorage.getItem(key) || 'light';
+        apply(saved);
+        $('#btn-theme').addEventListener('click', ()=>{
+          const current = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
+          const next = current === 'dark' ? 'light' : 'dark';
+          localStorage.setItem(key, next);
+          apply(next);
+        });
+      })();
+      document.addEventListener('click',(e)=>{ const btn=e.target.closest('#selected-apps button[data-remove]'); if(!btn) return; const id=btn.getAttribute('data-remove'); state.selectedApps = state.selectedApps.filter(a=>a.appId!==id); state.disabledAppIds.delete(id); renderSelectedApps(); $('#btn-fetch').disabled = state.selectedApps.length===0; const sb = $(`#search-results .select-btn[data-appid="${CSS.escape(id)}"]`); if (sb){ sb.removeAttribute('disabled'); sb.classList.remove('bg-[#e5e7eb]','text-[#9aa0a6]','border','#e5e7eb'); sb.classList.add('bg-[#eaf1eb]'); sb.style.color='#121212'; sb.style.fontWeight='400'; } });
+    </script>
+  </body>
+  </html>
+
+
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>App Review Prioritizer</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin />
+    <link rel="stylesheet" as="style" onload="this.rel='stylesheet'" href="https://fonts.googleapis.com/css2?display=swap&family=Inter:wght@400;500;700;900&family=Noto+Sans:wght@400;500;700;900" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- App public config & Analytics -->
+    <script src="/config.js"></script>
+    <script src="/js/analytics.js"></script>
+    <style>
+      /* 유리(Glass) 패널 효과 */
+      .glass { background: rgba(255,255,255,0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+      .glass-border { border-color: rgba(212,226,215,0.7) !important; }
+      /* ========== 다크모드(명시 팔레트) ========== */
+      body.dark-mode { background-color: #0f1115; color: #e4e6eb; }
+      /* 카드/패널/박스 + 우리 컴포넌트 매핑 */
+      body.dark-mode .card,
+      body.dark-mode .panel,
+      body.dark-mode .box,
+      body.dark-mode .glass,
+      body.dark-mode .app-card,
+      body.dark-mode #selected-apps > div {
+        background: linear-gradient(145deg, #1a1c21, #1e2025) !important;
+        border: 1px solid #2a2d34 !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important;
+      }
+      /* 입력 */
+      body.dark-mode input,
+      body.dark-mode textarea,
+      body.dark-mode select { background-color: #1b1d22 !important; border: 1px solid #2d2f36 !important; color: #f0f0f0 !important; }
+      body.dark-mode input::placeholder { color: #7a7d85 !important; }
+      /* 버튼 */
+      body.dark-mode button { background-color: #24262b !important; color: #f0f0f0 !important; border: 1px solid #3a3d44 !important; }
+      body.dark-mode button:hover { background-color: #2d2f36 !important; }
+      /* 테이블 */
+      body.dark-mode table { background-color: #16181d !important; border-color: #2d2f36 !important; }
+      body.dark-mode th { background-color: #1f2126 !important; color: #bfc2c7 !important; }
+      body.dark-mode td { border-top: 1px solid #2d2f36 !important; color: #e4e6eb !important; }
+      /* 강조(선택된 상태) */
+      body.dark-mode .active,
+      body.dark-mode [aria-selected="true"],
+      body.dark-mode [data-active="true"] { background-color: #2b6cb0 !important; color: #ffffff !important; border-color: #2b6cb0 !important; }
+      /* 아이콘/이미지는 라이트/다크 동일 색 유지 */
+      body.dark-mode img, body.dark-mode video { filter: none !important; }
+    </style>
+  </head>
+  <body class="min-h-screen bg-[#f9fbf9]" style='font-family: Inter, "Noto Sans", sans-serif;'>
+    <div id="app-root" class="flex min-h-screen flex-col">
+      <header class="flex items-center justify-between border-b border-[#eaf1eb] px-10 py-3">
+        <div class="flex items-center gap-3 text-[#101812]">
+          <div class="size-5 text-[#22672e]">
+            <svg viewBox="0 0 48 48" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M36.7273 44C33.9891 44 31.6043 39.8386 30.3636 33.69C29.123 39.8386 26.7382 44 24 44C21.2618 44 18.877 39.8386 17.6364 33.69C16.3957 39.8386 14.0109 44 11.2727 44C7.25611 44 4 35.0457 4 24C4 12.9543 7.25611 4 11.2727 4C14.0109 4 16.3957 8.16144 17.6364 14.31C18.877 8.16144 21.2618 4 24 4C26.7382 4 29.123 8.16144 30.3636 14.31C31.6043 8.16144 33.9891 4 36.7273 4C40.7439 4 44 12.9543 44 24C44 35.0457 40.7439 44 36.7273 44Z"/></svg>
+          </div>
+          <h2 class="text-lg font-bold tracking-[-0.015em]">앱 리뷰 우선순위</h2>
+        </div>
+        <div class="flex flex-1 justify-end">
+          <button id="btn-theme" class="flex items-center gap-2 rounded-lg border border-[#d4e2d7] px-3 py-1.5 text-sm text-[#101812]">
+            <span id="theme-icon" aria-hidden="true">🌙</span>
+            <span>다크모드</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="flex flex-1 justify-center px-6 py-5 gap-6">
+        <!-- Left: Select Apps -->
+        <aside class="flex w-[630px] flex-col">
+          <div class="flex items-center justify-between px-2 pt-5 pb-3">
+            <h2 class="text-[#101812] text-[22px] font-bold leading-tight tracking-[-0.015em]">앱 검색</h2>
+          </div>
+          <!-- OS Toggle -->
+          <div class="flex gap-3 px-2 pb-2">
+            <label class="cursor-pointer text-sm">
+              <input type="radio" name="os" value="android" class="sr-only" checked />
+              <span class="inline-flex items-center gap-2 rounded-lg border border-[#d4e2d7] px-3 py-2 text-[#101812] data-[active=true]:border-2 data-[active=true]:border-[#22672e]" data-os="android">Android</span>
+            </label>
+            <label class="cursor-pointer text-sm">
+              <input type="radio" name="os" value="ios" class="sr-only" />
+              <span class="inline-flex items-center gap-2 rounded-lg border border-[#d4e2d7] px-3 py-2 text-[#101812]" data-os="ios">iOS</span>
+            </label>
+          </div>
+          <!-- Search -->
+          <div class="px-2 py-2 mb-4">
+        <div class="flex h-12 items-center rounded-lg bg-[#eaf1eb] text-[#101812] glass glass-border border panel">
+              <div class="pl-4 text-[#5c8a63]">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"></path></svg>
+              </div>
+              <input id="q" maxlength="100" placeholder="앱을 검색하거나 스토어 URL을 붙여넣기" class="form-input h-full w-full border-none bg-[#eaf1eb] px-3 text-base text-[#101812] placeholder:text-[#5c8a63] focus:ring-0" />
+              <button id="btn-search" class="hidden">검색</button>
+            </div>
+          </div>
+          <!-- Results -->
+          <div id="search-results" class="px-2 pb-4 grid grid-cols-2 gap-3 overflow-y-auto border rounded-lg glass glass-border p-2 hidden panel" style="max-height: 380px;"></div>
+
+          <div class="flex items-center justify-between px-2 pb-2 mt-8">
+            <h2 class="text-[#101812] text-[22px] font-bold leading-tight tracking-[-0.015em]">선택한 앱 (최대 10개)</h2>
+            <button id="btn-reset-selected" class="text-sm text-[#22672e] underline">초기화</button>
+          </div>
+          <div id="selected-apps" class="px-2 grid grid-cols-2 gap-2" style="grid-auto-rows:minmax(48px,auto);"></div>
+        </aside>
+
+        <!-- Right: Criteria and Results -->
+        <section id="component-result" class="flex max-w/[980px] max-w-[980px] flex-1 flex-col">
+          <div class="flex items-center justify-between gap-3 px-2 pt-4 pb-2">
+            <h3 class="text-[#101812] text-[22px] font-bold tracking-[-0.015em]">조건 설정</h3>
+            <button id="btn-fetch" disabled class="h-10 rounded-lg bg-[#22672e] px-4 text-sm font-bold text-[#f9fbf9] disabled:opacity-60">리뷰 불러오기</button>
+          </div>
+
+          <div class="mx-2 mb-8 rounded-lg border border-[#eaf1eb] bg-white glass glass-border panel">
+          <!-- Count -->
+          <div class="flex flex-wrap items-center gap-3 p-4">
+            <div class="w-16 shrink-0 text-sm font-semibold text-[#101812]">개수</div>
+            <label class="cursor-pointer text-sm"><input type="radio" name="count" value="100" class="sr-only" /><span data-pill="count" data-value="100" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">100</span></label>
+            <label class="cursor-pointer text-sm"><input type="radio" name="count" value="200" class="sr-only" /><span data-pill="count" data-value="200" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">200</span></label>
+            <label class="cursor-pointer text-sm"><input type="radio" name="count" value="300" class="sr-only" checked /><span data-pill="count" data-value="300" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">300</span></label>
+            <label class="cursor-pointer text-sm"><input type="radio" name="count" value="400" class="sr-only" /><span data-pill="count" data-value="400" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">400</span></label>
+            <label class="cursor-pointer text-sm"><input type="radio" name="count" value="500" class="sr-only" /><span data-pill="count" data-value="500" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">500</span></label>
+            <label class="cursor-pointer text-sm ml-2 inline-flex items-center gap-2"><input type="radio" name="countMode" value="custom" id="count-custom-radio" class="accent-[#22672e]" /><span>직접입력</span></label>
+            <input id="count-custom" type="text" inputmode="numeric" pattern="\d+" placeholder="예: 750" class="h-11 w-36 rounded-lg border border-[#d4e2d7] px-3" disabled />
+          </div>
+
+          <!-- Period -->
+          <div class="flex flex-wrap items-center gap-3 p-4">
+            <div class="w-16 shrink-0 text-sm font-semibold text-[#101812]">기간</div>
+            <label class="cursor-pointer text-sm"><input type="radio" name="period" value="30" class="sr-only" /><span data-pill="period" data-value="30" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">1개월</span></label>
+            <label class="cursor-pointer text-sm"><input type="radio" name="period" value="90" class="sr-only" checked /><span data-pill="period" data-value="90" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">3개월</span></label>
+            <label class="cursor-pointer text-sm"><input type="radio" name="period" value="180" class="sr-only" /><span data-pill="period" data-value="180" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">6개월</span></label>
+            <label class="cursor-pointer text-sm"><input type="radio" name="period" value="365" class="sr-only" /><span data-pill="period" data-value="365" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">1년</span></label>
+            <label class="cursor-pointer text-sm"><input type="radio" name="period" value="1095" class="sr-only" /><span data-pill="period" data-value="1095" class="inline-flex h-11 items-center justify-center rounded-lg border border-[#d4e2d7] px-4">3년</span></label>
+            <label class="cursor-pointer text-sm ml-2 inline-flex items-center gap-2"><input type="radio" name="periodMode" value="custom" id="period-custom-radio" class="accent-[#22672e]" /><span>직접입력</span></label>
+            <input id="period-custom" type="text" inputmode="numeric" pattern="\d{8}" placeholder="yyyymmdd" class="h-11 w-40 rounded-lg border border-[#d4e2d7] px-3" disabled />
+          </div>
+
+          <!-- Rating -->
+          <div class="p-4 flex items-center gap-3 flex-wrap">
+            <div class="w-16 shrink-0 text-sm font-semibold text-[#101812]">평점</div>
+            <div class="flex gap-2">
+              <button class="star rounded-lg border border-[#d4e2d7] px-3 py-2 bg-[#22672e] text-white border-[#22672e]" data-val="1" data-active>★</button>
+              <button class="star rounded-lg border border-[#d4e2d7] px-3 py-2" data-val="2">★★</button>
+              <button class="star rounded-lg border border-[#d4e2d7] px-3 py-2" data-val="3">★★★</button>
+              <button class="star rounded-lg border border-[#d4e2d7] px-3 py-2" data-val="4">★★★★</button>
+              <button class="star rounded-lg border border-[#d4e2d7] px-3 py-2" data-val="5">★★★★★</button>
+            </div>
+          </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex items-center justify-between px-2 gap-4">
+            <div id="total-info" class="font-bold text-[22px] text-[#101812] hidden"></div>
+            <div id="result-actions" class="hidden items-center justify-end gap-4">
+              <button id="btn-export" class="h-10 rounded-lg bg-[#22672e] px-4 text-sm font-bold text-white disabled:opacity-60" disabled>CSV 다운로드</button>
+              <button id="btn-copy" class="h-10 rounded-lg bg-[#22672e] px-4 text-sm font-bold text-white disabled:opacity-60" disabled>표 복사</button>
+            </div>
+          </div>
+          <div id="severity-note" class="px-2 text-sm text-[#5c8a63] mt-1">심각도 점수: 낮은 평점 가중치↑, 좋아요 로그 가중 (예: 1점×(1+log2(1+좋아요)))</div>
+
+          <!-- Table -->
+          <div class="px-2 pb-6">
+            <div class="overflow-auto rounded-lg border border-[#eaf1eb] bg-white glass glass-border h-[52vh]">
+              <table id="tbl" class="min-w-full text-sm border-collapse">
+                <thead class="bg-[#f3f7f4] text-[#5c8a63]">
+                  <tr>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">OS</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">서비스명</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">순위</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">내용</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">심각도 점수</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">백분위</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">평점</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">좋아요</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">닉네임</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">날짜</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-[#e5e7eb]"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <div id="toast" class="pointer-events-none fixed bottom-4 left-1/2 -translate-x-1/2 rounded-lg border border-[#eaf1eb] bg-white px-4 py-2 text-sm text-[#101812] opacity-0 shadow transition-opacity"></div>
+    </div>
+
+    <script>
+      const $ = (s)=>document.querySelector(s);
+      const $$ = (s)=>Array.from(document.querySelectorAll(s));
+      const state = { selectedOS:'android', selectedApps:[], disabledAppIds:new Set(), reviewCountPerApp:300, payload:null };
+
+      // OS 토글 스타일 반영
+      function syncOsPills(){
+        $$("[data-os]").forEach(x=>x.dataset.active = (x.dataset.os===state.selectedOS));
+      }
+
+      function renderSearchResults(items){
+        const root = $('#search-results');
+        root.classList.toggle('hidden', !items || items.length===0);
+        root.innerHTML = '';
+        items.forEach(item=>{
+          const score = (item.score ?? null) !== null ? Number(item.score).toFixed(2) : '-';
+          const el = document.createElement('div');
+          el.className = 'app-card flex items-center gap-3 rounded-lg border border-[#eaf1eb] bg-white p-3';
+          el.innerHTML = `
+            <img src="${item.icon||''}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'42\' height=\'42\'></svg>'" class="h-10 w-10 rounded-lg" alt="icon" />
+            <div class="min-w-0">
+              <div class="truncate text-sm font-semibold text-[#101812] title">${item.title||''}</div>
+              <div class="truncate text-xs text-[#5c8a63]">${item.developer||''}</div>
+              <div class="text-xs text-[#5c8a63]">★ ${score}</div>
+            </div>
+            <div class="ml-auto">
+              <button class="select-btn h-8 w-16 rounded-lg bg-[#eaf1eb] text-xs font-normal text-[#121212] disabled:opacity-60" data-appid="${item.appId}" ${state.disabledAppIds.has(String(item.appId))?'disabled':''}>선택</button>
+            </div>`;
+          root.appendChild(el);
+        });
+      }
+
+      async function doSearch(){
+        const q = $('#q').value.trim();
+        if(!q){ $('#search-results').innerHTML=''; $('#search-results').classList.add('hidden'); return; }
+        $('#search-results').classList.remove('hidden');
+        $('#search-results').innerHTML = '<div class="text-sm text-[#5c8a63]">검색 중…</div>';
+        window.logEvent('search','submit',{ query:q, os:state.selectedOS });
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&os=${encodeURIComponent(state.selectedOS)}`);
+        const data = await res.json();
+        renderSearchResults(data.items||[]);
+        if (isAppUrl(q) && Array.isArray(data.items) && data.items.length === 1) {
+          const item = data.items[0];
+          const appIdStr = String(item.appId);
+          if (!state.disabledAppIds.has(appIdStr) && state.selectedApps.length < 10) {
+            state.selectedApps.push({ appId: appIdStr, appName: item.title||'', os: item.os||state.selectedOS, icon: item.icon||'' });
+            state.disabledAppIds.add(appIdStr);
+            renderSelectedApps();
+            $('#btn-fetch').disabled = state.selectedApps.length===0;
+            $('#result-actions').classList.add('hidden');
+            window.logEvent('search','auto_select_from_url',{ app_id: appIdStr });
+          }
+        }
+      }
+
+      async function fetchReviews(){
+        if(state.selectedApps.length===0) return;
+        const countSel = document.querySelector('input[name="count"]:checked');
+        let countPerApp = countSel ? parseInt(countSel.value,10) : 500;
+        if($('#count-custom-radio')?.checked){ const v = parseInt($('#count-custom').value||'0',10); if(!Number.isNaN(v) && v>0) countPerApp=v; }
+        const periodSel = document.querySelector('input[name="period"]:checked');
+        let days = periodSel ? parseInt(periodSel.value,10) : 365;
+        let fromDate = '';
+        if($('#period-custom-radio')?.checked){ const v = ($('#period-custom').value||'').trim(); if(/^\d{8}$/.test(v)) fromDate=v; }
+        const ratingMaxBtn = document.querySelector('.star[data-active]');
+        const ratingMax = ratingMaxBtn ? parseInt(ratingMaxBtn.getAttribute('data-val'),10) : 3;
+        window.logEvent('fetch','request_multi',{ apps:state.selectedApps.length, countPerApp });
+        $('#tbl tbody').innerHTML = '<tr><td colspan="10" class="px-3 py-2 text-sm text-[#5c8a63]">불러오는 중…</td></tr>';
+        const body = { selectedApps: state.selectedApps, countPerApp, days, ratingMax, fromDate };
+        const res = await fetch('/api/reviews/multi',{ method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json();
+        state.payload = data;
+        renderTable(data.rows||[]);
+        const hasRows = (data?.meta?.total ?? 0) > 0;
+        $('#btn-export').disabled = !hasRows; $('#btn-copy').disabled = !hasRows; $('#result-actions').classList.toggle('hidden', !hasRows);
+        const ti = document.getElementById('total-info');
+        if (ti) { ti.textContent = hasRows ? `총 ${data.meta.total}개의 리뷰를 불러왔습니다.` : ''; ti.classList.toggle('hidden', !hasRows); }
+      }
+
+      function renderTable(rows){
+        const tbody = $('#tbl tbody');
+        if(!rows.length){ tbody.innerHTML = '<tr><td colspan="10" class="px-3 py-2 text-sm text-[#5c8a63]">결과가 없습니다</td></tr>'; return; }
+        tbody.innerHTML = rows.map(r=>`
+          <tr class="bg-white">
+            <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['OS']??''}</td>
+            <td class="px-3 py-2 border border-[#e5e7eb]" title="${escapeHtml(r['서비스명'])}"><span class="block max-w-[8ch] truncate" data-full="${escapeHtml(r['서비스명'])}">${escapeHtml(r['서비스명'])}</span></td>
+            <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['순위']??''}</td>
+            <td class="px-3 py-2 border border-[#e5e7eb]" title="${escapeHtml(r['내용']??'')}"><span class="block max-w-[50ch] truncate" data-full-content="${escapeHtml(r['내용']??'')}">${escapeHtml(r['내용']??'')}</span></td>
+            <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['심각도 점수']??''}</td>
+            <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['백분위']??''}</td>
+            <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['평점']}</td>
+            <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['좋아요']}</td>
+            <td class="px-3 py-2 border border-[#e5e7eb]" title="${escapeHtml(r['닉네임']??'')}"><span class="block max-w-[5ch] truncate" data-full-nick="${escapeHtml(r['닉네임']??'')}">${escapeHtml(r['닉네임']??'')}</span></td>
+            <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['날짜']}</td>
+          </tr>`).join('');
+      }
+
+      function escapeHtml(str){ return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;'); }
+
+      async function copyTable(){
+        const rows = $$('#tbl tr');
+        const data = rows.map(tr=>Array.from(tr.children).map(td=>{
+          // 서비스명/내용/닉네임은 data-full 기반으로 원문 복사
+          const full = td.querySelector('[data-full]')?.getAttribute('data-full')
+                   || td.querySelector('[data-full-content]')?.getAttribute('data-full-content')
+                   || td.querySelector('[data-full-nick]')?.getAttribute('data-full-nick');
+          return full ?? td.textContent;
+        }));
+        const tsv = data.map(r=>r.join('\t')).join('\n');
+        try{ await navigator.clipboard.writeText(tsv); }catch(e){ const ta=document.createElement('textarea'); ta.value=tsv; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+        const toast=$('#toast'); toast.textContent='복사 완료!'; toast.style.opacity='1'; setTimeout(()=>toast.style.opacity='0',2000);
+        window.logEvent('table','copy',{ rows:data.length });
+      }
+
+      function exportCsv(){
+        const rows = state?.payload?.rows || [];
+        if(!rows.length){ alert('내보낼 데이터가 없습니다.'); return; }
+        const headers = ['OS','서비스명','순위','내용','심각도 점수','백분위','평점','좋아요','닉네임','날짜'];
+        function esc(v){
+          const s = String(v ?? '');
+          if (s.includes('"') || s.includes(',') || s.includes('\n')) return '"'+s.replaceAll('"','""')+'"';
+          return s;
+        }
+        const lines = [headers.join(',')].concat(rows.map(r=>headers.map(h=>esc(r[h])).join(',')));
+        const csv = '\ufeff' + lines.join('\n'); // UTF-8 BOM
+        const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const dt = new Date();
+        const ts = `${dt.getFullYear()}${String(dt.getMonth()+1).padStart(2,'0')}${String(dt.getDate()).padStart(2,'0')}_${String(dt.getHours()).padStart(2,'0')}${String(dt.getMinutes()).padStart(2,'0')}${String(dt.getSeconds()).padStart(2,'0')}`;
+        a.href = url; a.download = `reviews_${ts}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+        window.logEvent('table','export_csv',{ rows: rows.length });
+      }
+
+      function isAppUrl(u){ const s=String(u||'').toLowerCase(); return s.includes('apps.apple.com')||s.includes('play.google.com'); }
+
+      // 라디오 선택 시 pill 스타일 동기화
+      function markPills(group, value){
+        document.querySelectorAll(`[data-pill='${group}']`).forEach(el=>{
+          el.dataset.active = (String(el.dataset.value) === String(value));
+        });
+      }
+      document.addEventListener('change', (e)=>{
+        const t = e.target;
+        if (!(t instanceof HTMLInputElement)) return;
+        if (t.name === 'count') markPills('count', t.value);
+        if (t.name === 'period') markPills('period', t.value);
+        // 직접입력 정책: count/period 버튼 클릭 시 해당 custom 라디오 해제
+        if (t.name === 'count') { const cm = document.getElementById('count-custom-radio'); if (cm) cm.checked = false; }
+        if (t.name === 'period') { const pm = document.getElementById('period-custom-radio'); if (pm) pm.checked = false; }
+        // custom 라디오 선택 시 입력 활성화, 반대 그룹 pill 비활성화 유지
+        if (t.id === 'count-custom-radio') { const cc = document.getElementById('count-custom'); if (cc) cc.disabled = !t.checked; if (t.checked) cc.focus(); }
+        if (t.id === 'period-custom-radio') { const pc = document.getElementById('period-custom'); if (pc) pc.disabled = !t.checked; if (t.checked) pc.focus(); }
+      });
+
+      // pill 클릭으로 라디오 선택
+      document.addEventListener('click', (e)=>{
+        const pill = e.target.closest('[data-pill]');
+        if (!pill) return;
+        const group = pill.getAttribute('data-pill');
+        const val = pill.getAttribute('data-value');
+        const input = document.querySelector(`input[name="${group}"][value="${CSS.escape(val)}"]`);
+        if (input) { input.checked = true; markPills(group, val); }
+        // pill 클릭도 직접입력 라디오 해제
+        if (group === 'count') { const cm = document.getElementById('count-custom-radio'); if (cm) cm.checked = false; }
+        if (group === 'period') { const pm = document.getElementById('period-custom-radio'); if (pm) pm.checked = false; }
+      });
+
+      // 선택 스타일: pill은 활성 시 배경/글자색 변경
+      function styleActivePills(){
+        document.querySelectorAll('[data-pill]').forEach(el=>{
+          const active = el.dataset.active === 'true';
+          el.classList.toggle('bg-[#22672e]', active);
+          el.classList.toggle('text-white', active);
+          el.classList.toggle('border-[#22672e]', active);
+        });
+      }
+      // markPills 확장: 스타일 반영
+      const _origMarkPills = markPills;
+      markPills = function(group, value){
+        document.querySelectorAll(`[data-pill='${group}']`).forEach(el=>{
+          el.dataset.active = (String(el.dataset.value) === String(value));
+        });
+        styleActivePills();
+      }
+      // 초기 스타일 적용
+      styleActivePills();
+
+      // 별점 스타일 토글(선택 시 키 컬러)
+      document.querySelectorAll('.star').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          document.querySelectorAll('.star').forEach(b=>{
+            b.removeAttribute('data-active');
+            b.classList.remove('bg-[#22672e]','text-white','border-[#22672e]');
+          });
+          btn.setAttribute('data-active','');
+          btn.classList.add('bg-[#22672e]','text-white','border-[#22672e]');
+        });
+      });
+
+      // bindings
+      $('#btn-search').addEventListener('click', doSearch);
+      let typingTimer=null; $('#q').addEventListener('input',()=>{ clearTimeout(typingTimer); typingTimer=setTimeout(doSearch,250); }); $('#q').addEventListener('keydown',(e)=>{ if(e.key==='Enter') doSearch(); });
+      document.querySelectorAll('input[name="os"]').forEach(r=>{ r.addEventListener('change',()=>{ state.selectedOS=r.value; syncOsPills(); doSearch(); }); }); syncOsPills();
+      document.addEventListener('click',(e)=>{
+        const btn=e.target.closest('.select-btn');
+        if(!btn) return;
+        const appId=btn.getAttribute('data-appid');
+        const card=btn.closest('.app-card');
+        const title=card?.querySelector('.title')?.textContent||'';
+        const icon=card?.querySelector('img')?.src||'';
+        if(state.disabledAppIds.has(appId)||state.selectedApps.length>=10) return;
+        state.selectedApps.push({ appId, appName:title, os:state.selectedOS, icon });
+        state.disabledAppIds.add(appId);
+        // 버튼 비활성화를 더 명확하게
+        btn.disabled=true;
+        btn.classList.add('bg-[#e5e7eb]','text-[#9aa0a6]','border','#e5e7eb');
+        renderSelectedApps();
+        $('#btn-fetch').disabled = state.selectedApps.length===0;
+        $('#result-actions').classList.add('hidden');
+      });
+      $('#btn-fetch').addEventListener('click', fetchReviews);
+      $('#btn-export').addEventListener('click', exportCsv);
+      $('#btn-copy').addEventListener('click', copyTable);
+      $('#count-custom-radio')?.addEventListener('change',()=>{ const cc=$('#count-custom'); const on=$('#count-custom-radio').checked; cc.disabled=!on; if(on) cc.focus(); });
+      $('#period-custom-radio')?.addEventListener('change',()=>{ const pc=$('#period-custom'); const on=$('#period-custom-radio').checked; pc.disabled=!on; if(on) pc.focus(); });
+      $('#btn-reset-selected')?.addEventListener('click',()=>{ state.selectedApps=[]; state.disabledAppIds=new Set(); renderSelectedApps(); $$('#search-results .select-btn[disabled]').forEach(b=>{ b.disabled=false; b.classList.remove('bg-[#e5e7eb]','text-[#9aa0a6]','border','#e5e7eb'); b.classList.add('bg-[#eaf1eb]'); b.style.color='#121212'; b.style.fontWeight='400'; }); $('#btn-fetch').disabled=true; });
+
+      function renderSelectedApps(){ const root=$('#selected-apps'); root.innerHTML=''; state.selectedApps.forEach(({appId,appName,icon})=>{ const el=document.createElement('div'); el.className='flex items-center justify-between rounded-lg border border-[#eaf1eb] bg-white px-3 py-3'; el.innerHTML = `<div class=\"flex items-center gap-2 min-w-0\"><img src=\"${icon}\" class=\"h-7 w-7 rounded\"/><p class=\"truncate text-sm\">${escapeHtml(appName)}</p></div><button data-remove=\"${appId}\" class=\"text-[#101812]\">✕</button>`; root.appendChild(el); }); }
+      // 초기 pill 표시 동기화(기본: 개수 300, 기간 3개월)
+      markPills('count', document.querySelector('input[name="count"]:checked')?.value || '300');
+      markPills('period', document.querySelector('input[name="period"]:checked')?.value || '90');
+
+      // 다크모드 토글
+      (function(){
+        const root = document.documentElement;
+        const key = 'theme';
+        function apply(mode){
+          const isDark = mode === 'dark';
+          root.classList.toggle('dark', isDark);          // 이전 호환
+          document.body.classList.toggle('dark-mode', isDark); // 신규 팔레트 적용
+          $('#theme-icon').textContent = isDark ? '☀️' : '🌙';
+        }
+        const saved = localStorage.getItem(key) || 'light';
+        apply(saved);
+        $('#btn-theme').addEventListener('click', ()=>{
+          const current = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
+          const next = current === 'dark' ? 'light' : 'dark';
+          localStorage.setItem(key, next);
+          apply(next);
+        });
+      })();
+      document.addEventListener('click',(e)=>{ const btn=e.target.closest('#selected-apps button[data-remove]'); if(!btn) return; const id=btn.getAttribute('data-remove'); state.selectedApps = state.selectedApps.filter(a=>a.appId!==id); state.disabledAppIds.delete(id); renderSelectedApps(); $('#btn-fetch').disabled = state.selectedApps.length===0; const sb = $(`#search-results .select-btn[data-appid="${CSS.escape(id)}"]`); if (sb){ sb.removeAttribute('disabled'); sb.classList.remove('bg-[#e5e7eb]','text-[#9aa0a6]','border','#e5e7eb'); sb.classList.add('bg-[#eaf1eb]'); sb.style.color='#121212'; sb.style.fontWeight='400'; } });
+    </script>
+  </body>
+</html>
+
+
