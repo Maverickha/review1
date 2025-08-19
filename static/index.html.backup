@@ -167,7 +167,7 @@
                     <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">순위</th>
                     <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">내용</th>
                     <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">심각도 점수</th>
-
+                    <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">백분위</th>
                     <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">평점</th>
                     <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">좋아요</th>
                     <th class="whitespace-nowrap px-3 py-2 text-left border border-[#e5e7eb]">닉네임</th>
@@ -251,7 +251,7 @@
         const ratingMaxBtn = document.querySelector('.star[data-active]');
         const ratingMax = ratingMaxBtn ? parseInt(ratingMaxBtn.getAttribute('data-val'),10) : 3;
         window.logEvent('fetch','request_multi',{ apps:state.selectedApps.length, countPerApp });
-        $('#tbl tbody').innerHTML = '<tr><td colspan="9" class="px-3 py-2 text-sm text-[#5c8a63]">불러오는 중…</td></tr>';
+        $('#tbl tbody').innerHTML = '<tr><td colspan="10" class="px-3 py-2 text-sm text-[#5c8a63]">불러오는 중…</td></tr>';
         const body = { selectedApps: state.selectedApps, countPerApp, days, ratingMax, fromDate };
         const res = await fetch('/api/reviews/multi',{ method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });
         const data = await res.json();
@@ -265,7 +265,7 @@
 
       function renderTable(rows){
         const tbody = $('#tbl tbody');
-        if(!rows.length){ tbody.innerHTML = '<tr><td colspan="9" class="px-3 py-2 text-sm text-[#5c8a63]">결과가 없습니다</td></tr>'; return; }
+        if(!rows.length){ tbody.innerHTML = '<tr><td colspan="10" class="px-3 py-2 text-sm text-[#5c8a63]">결과가 없습니다</td></tr>'; return; }
         tbody.innerHTML = rows.map(r=>`
           <tr class="bg-white">
             <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['OS']??''}</td>
@@ -273,7 +273,7 @@
             <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['순위']??''}</td>
             <td class="px-3 py-2 border border-[#e5e7eb]" title="${escapeHtml(r['내용']??'')}"><span class="block max-w-[50ch] truncate" data-full-content="${escapeHtml(r['내용']??'')}">${escapeHtml(r['내용']??'')}</span></td>
             <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['심각도 점수']??''}</td>
-
+            <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['백분위']??''}</td>
             <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['평점']}</td>
             <td class="whitespace-nowrap px-3 py-2 border border-[#e5e7eb]">${r['좋아요']}</td>
             <td class="px-3 py-2 border border-[#e5e7eb]" title="${escapeHtml(r['닉네임']??'')}"><span class="block max-w-[5ch] truncate" data-full-nick="${escapeHtml(r['닉네임']??'')}">${escapeHtml(r['닉네임']??'')}</span></td>
@@ -301,7 +301,7 @@
       function exportCsv(){
         const rows = state?.payload?.rows || [];
         if(!rows.length){ alert('내보낼 데이터가 없습니다.'); return; }
-        const headers = ['OS','서비스명','순위','내용','심각도 점수','평점','좋아요','닉네임','날짜'];
+        const headers = ['OS','서비스명','순위','내용','심각도 점수','백분위','평점','좋아요','닉네임','날짜'];
         function esc(v){
           const s = String(v ?? '');
           if (s.includes('"') || s.includes(',') || s.includes('\n')) return '"'+s.replaceAll('"','""')+'"';
@@ -440,3 +440,60 @@
     </script>
   </body>
   </html>
+
+
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>App Review Prioritizer</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin />
+    <link rel="stylesheet" as="style" onload="this.rel='stylesheet'" href="https://fonts.googleapis.com/css2?display=swap&family=Inter:wght@400;500;700;900&family=Noto+Sans:wght@400;500;700;900" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- App public config & Analytics -->
+    <script src="/config.js"></script>
+    <script src="/js/analytics.js"></script>
+    <style>
+      /* 유리(Glass) 패널 효과 */
+      .glass { background: rgba(255,255,255,0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+      .glass-border { border-color: rgba(212,226,215,0.7) !important; }
+      /* ========== 다크모드(명시 팔레트) ========== */
+      body.dark-mode { background-color: #0f1115; color: #e4e6eb; }
+      /* 카드/패널/박스 + 우리 컴포넌트 매핑 */
+      body.dark-mode .card,
+      body.dark-mode .panel,
+      body.dark-mode .box,
+      body.dark-mode .glass,
+      body.dark-mode .app-card,
+      body.dark-mode #selected-apps > div {
+        background: linear-gradient(145deg, #1a1c21, #1e2025) !important;
+        border: 1px solid #2a2d34 !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important;
+      }
+      /* 입력 */
+      body.dark-mode input,
+      body.dark-mode textarea,
+      body.dark-mode select { background-color: #1b1d22 !important; border: 1px solid #2d2f36 !important; color: #f0f0f0 !important; }
+      body.dark-mode input::placeholder { color: #7a7d85 !important; }
+      /* 버튼 */
+      body.dark-mode button { background-color: #24262b !important; color: #f0f0f0 !important; border: 1px solid #3a3d44 !important; }
+      body.dark-mode button:hover { background-color: #2d2f36 !important; }
+      /* 테이블 */
+      body.dark-mode table { background-color: #16181d !important; border-color: #2d2f36 !important; }
+      body.dark-mode th { background-color: #1f2126 !important; color: #bfc2c7 !important; }
+      body.dark-mode td { border-top: 1px solid #2d2f36 !important; color: #e4e6eb !important; }
+      /* 강조(선택된 상태) */
+      body.dark-mode .active,
+      body.dark-mode [aria-selected="true"],
+      body.dark-mode [data-active="true"] { background-color: #2b6cb0 !important; color: #ffffff !important; border-color: #2b6cb0 !important; }
+      /* 아이콘/이미지는 라이트/다크 동일 색 유지 */
+      body.dark-mode img, body.dark-mode video { filter: none !important; }
+    </style>
+  </head>
+  <body class="min-h-screen bg-[#f9fbf9]" style='font-family: Inter, "Noto Sans", sans-serif;'>
+    <div id="app-root" class="flex min-h-screen flex-col">
+
+    </div>
+  </body>
+</html>
