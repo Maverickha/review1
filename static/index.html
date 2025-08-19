@@ -83,11 +83,11 @@
           </div>
           <!-- Search -->
           <div class="px-2 py-2 mb-4">
-        <div class="flex h-12 items-center rounded-lg bg-[#eaf1eb] text-[#101812] glass glass-border border panel">
-              <div class="pl-4 text-[#5c8a63]">
+        <div class="flex h-12 items-center rounded-lg border border-gray-300 bg-white">
+              <div class="pl-4 text-gray-500">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"></path></svg>
               </div>
-              <input id="q" maxlength="100" placeholder="앱을 검색하거나 스토어 URL을 붙여넣기" class="form-input h-full w-full border-none bg-[#eaf1eb] px-3 text-base text-[#101812] placeholder:text-[#5c8a63] focus:ring-0" />
+              <input id="q" maxlength="100" placeholder="앱을 검색하거나 스토어 URL을 붙여넣기" class="form-input h-full w-full border-none bg-white px-3 text-base text-gray-900 placeholder:text-gray-500 focus:ring-0" />
               <button id="btn-search" class="hidden">검색</button>
             </div>
           </div>
@@ -95,7 +95,7 @@
           <div id="search-results" class="px-2 pb-4 grid grid-cols-2 gap-3 overflow-y-auto border rounded-lg glass glass-border p-2 hidden panel" style="max-height: 380px;"></div>
 
           <div class="flex items-center justify-between px-2 pb-2 mt-8">
-            <h2 class="text-[#101812] text-[22px] font-bold leading-tight tracking-[-0.015em]">선택한 앱 (최대 10개)</h2>
+            <h2 class="text-[#101812] text-[22px] font-bold leading-tight tracking-[-0.015em]">선택한 앱</h2>
             <button id="btn-reset-selected" class="text-sm text-[#22672e] underline">초기화</button>
           </div>
           <div id="selected-apps" class="px-2 grid grid-cols-2 gap-2" style="grid-auto-rows:minmax(48px,auto);"></div>
